@@ -33,9 +33,11 @@ import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import com.bumptech.glide.Glide;
 import com.example.tuant.appchatfirebase.MainActivity;
 import com.example.tuant.appchatfirebase.R;
 import com.example.tuant.appchatfirebase.data.SharedPreferenceHelper;
@@ -46,6 +48,8 @@ import com.example.tuant.appchatfirebase.model.Message;
 import com.example.tuant.appchatfirebase.util.CheckPermissUtils;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -89,14 +93,21 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
     ImageView emojibtn;
     ImageView iccamera;
     private int REQUEST_CAMERA = 0, SELECT_FILE = 1;
+    private int RC_PHOTO_PICKER = 1;
     private String userChoosenTask;
     private Bitmap mBitmapImage;
-    FirebaseStorage storage = FirebaseStorage.getInstance();
+    //FirebaseStorage storage = FirebaseStorage.getInstance();
     public static final String URL_STORAGE_REFERENCE = "gs://appchatfirebase-a091c.appspot.com";
     public static final String FOLDER_STORAGE_IMG = "images";
     private File filePathImageCamera;
     private DatabaseReference mFirebaseDatabaseReference;
     static final String CHAT_REFERENCE = "chatmodel";
+    private FirebaseApp app;
+    private FirebaseDatabase database;
+    private FirebaseAuth auth;
+    private FirebaseStorage storage;
+    private DatabaseReference databaseRef;
+    private StorageReference storageRef;
 
 
     @Override
@@ -126,7 +137,7 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
             bitmapAvataUser = null;
         }
 
-        rootView = findViewById(R.id.scrollView);
+        rootView = findViewById(R.id.constraint);
         editWriteMessage = (EmojiconEditText) findViewById(R.id.editWriteMessage);
         iccamera = findViewById(R.id.ic_camera);
         emojibtn = findViewById(R.id.emoji_btn);
@@ -136,9 +147,15 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
         iccamera.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                selectImage();
+                galleryIntent();
             }
         });
+
+        app = FirebaseApp.getInstance();
+        database = FirebaseDatabase.getInstance(app);
+//        auth = FirebaseAuth.getInstance(app);
+        databaseRef = database.getReference("message/" + roomId);
+        storage = FirebaseStorage.getInstance(app);
 
         emojIcon.setIconsIds(R.drawable.ic_action_keyboard, R.drawable.smiley);
         emojIcon.setKeyboardListener(new EmojIconActions.KeyboardListener() {
@@ -214,47 +231,51 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        switch (requestCode) {
-            case CheckPermissUtils.MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE:
-                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    if (userChoosenTask.equals("Take Photo"))
-                        cameraIntent();
-                    else if (userChoosenTask.equals("Choose from Library"))
-                        galleryIntent();
-                }
-                break;
-        }
+//        switch (requestCode) {
+//            case CheckPermissUtils.MY_PERMISSIONS_REQUEST_READ_EXTERNAL_STORAGE:
+//                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+//                    if (userChoosenTask.equals("Take Photo"))
+//                        cameraIntent();
+//                    else if (userChoosenTask.equals("Choose from Library"))
+//                        galleryIntent();
+//                }
+//                break;
+//        }
     }
 
     private void selectImage() {
-        final CharSequence[] items = {"Take Photo", "Choose from Library"};
-
-        AlertDialog.Builder builder = new AlertDialog.Builder(ChatActivity.this);
-        builder.setTitle("Add Photo!");
-        builder.setItems(items, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int item) {
-                boolean result = CheckPermissUtils.checkPermission(ChatActivity.this);
-                if (items[item].equals("Take Photo")) {
-                    userChoosenTask = "Take Photo";
-                    if (result)
-                        cameraIntent();
-
-                } else if (items[item].equals("Choose from Library")) {
-                    userChoosenTask = "Choose from Library";
-                    if (result)
-                        galleryIntent();
-                }
-            }
-        });
-        builder.show();
+//        final CharSequence[] items = {"Take Photo", "Choose from Library"};
+//
+//        AlertDialog.Builder builder = new AlertDialog.Builder(ChatActivity.this);
+//        builder.setTitle("Add Photo!");
+//        builder.setItems(items, new DialogInterface.OnClickListener() {
+//            @Override
+//            public void onClick(DialogInterface dialog, int item) {
+//                boolean result = CheckPermissUtils.checkPermission(ChatActivity.this);
+//                if (items[item].equals("Take Photo")) {
+//                    userChoosenTask = "Take Photo";
+//                    if (result)
+//                        cameraIntent();
+//
+//                } else if (items[item].equals("Choose from Library")) {
+//                    userChoosenTask = "Choose from Library";
+//                    if (result)
+//                        galleryIntent();
+//                }
+//            }
+//        });
+//        builder.show();
     }
 
     private void galleryIntent() {
-        Intent intent = new Intent();
-        intent.setType("image/*");
-        intent.setAction(Intent.ACTION_GET_CONTENT);//
-        startActivityForResult(Intent.createChooser(intent, "Select File"), SELECT_FILE);
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.setType("image/jpeg");
+        intent.putExtra(Intent.EXTRA_LOCAL_ONLY, true);
+        startActivityForResult(Intent.createChooser(intent, "Complete action using"), RC_PHOTO_PICKER);
+//        Intent intent = new Intent();
+//        intent.setType("image/*");
+//        intent.setAction(Intent.ACTION_GET_CONTENT);//
+//        startActivityForResult(Intent.createChooser(intent, "Select File"), SELECT_FILE);
     }
 
     private void photoCameraIntent() {
@@ -275,28 +296,28 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void sendFileFirebase(StorageReference storageReference, final Uri file) {
-        if (storageReference != null) {
-            final String name = DateFormat.format("yyyy-MM-dd_hhmmss", new Date()).toString();
-            StorageReference imageGalleryRef = storageReference.child(name + "_gallery");
-            UploadTask uploadTask = imageGalleryRef.putFile(file);
-            uploadTask.addOnFailureListener(new OnFailureListener() {
-                @Override
-                public void onFailure(@NonNull Exception e) {
-                    Log.e("tuan", "onFailure sendFileFirebase " + e.getMessage());
-                }
-            }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
-                @Override
-                public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                    Log.i("tuan", "onSuccess sendFileFirebase");
-                    Uri downloadUrl = taskSnapshot.getDownloadUrl();
-                    FileModel fileModel = new FileModel("img", downloadUrl.toString(), name, "");
-                    Message message = new Message();
-                    message.timestamp = System.currentTimeMillis();
-                    message.mFileModel = fileModel;
-                    mFirebaseDatabaseReference.child("message").push().setValue(message);
-                }
-            });
-        }
+//        if (storageReference != null) {
+//            final String name = DateFormat.format("yyyy-MM-dd_hhmmss", new Date()).toString();
+//            StorageReference imageGalleryRef = storageReference.child(name + "_gallery");
+//            UploadTask uploadTask = imageGalleryRef.putFile(file);
+//            uploadTask.addOnFailureListener(new OnFailureListener() {
+//                @Override
+//                public void onFailure(@NonNull Exception e) {
+//                    Log.e("tuan", "onFailure sendFileFirebase " + e.getMessage());
+//                }
+//            }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+//                @Override
+//                public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+//                    Log.i("tuan", "onSuccess sendFileFirebase");
+//                    Uri downloadUrl = taskSnapshot.getDownloadUrl();
+//                    FileModel fileModel = new FileModel("img", downloadUrl.toString(), name, "");
+//                    Message message = new Message();
+//                    message.timestamp = System.currentTimeMillis();
+//                    message.mFileModel = fileModel;
+//                    mFirebaseDatabaseReference.child("message").push().setValue(message);
+//                }
+//            });
+//        }
 
     }
 
@@ -304,57 +325,80 @@ public class ChatActivity extends AppCompatActivity implements View.OnClickListe
      * Envia o arvquivo para o firebase
      */
     private void sendFileFirebase(StorageReference storageReference, final File file) {
-        if (storageReference != null) {
-            final String name = DateFormat.format("yyyy-MM-dd_hhmmss", new Date()).toString();
-//            Uri photoURI = FileProvider.getUriForFile(ChatActivity.this,
-//                    BuildConfig.APPLICATION_ID + ".provider",
-//                    file);
-            StorageReference imageGalleryRef = storageReference.child(name + "_camera");
-            UploadTask uploadTask = imageGalleryRef.putFile(Uri.fromFile(file));
-            uploadTask.addOnFailureListener(new OnFailureListener() {
-                @Override
-                public void onFailure(@NonNull Exception e) {
-                    Log.e("tuan", "onFailure sendFileFirebase " + e.getMessage());
-                }
-            }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
-                @Override
-                public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
-                    Log.i("tuan", "onSuccess sendFileFirebase");
-                    Uri downloadUrl = taskSnapshot.getDownloadUrl();
-                    FileModel fileModel = new FileModel("img", downloadUrl.toString(), file.getName(),
-                            file.length() + "");
-                    Message message = new Message();
-                    message.timestamp = System.currentTimeMillis();
-                    message.mFileModel = fileModel;
-                    mFirebaseDatabaseReference.child("message").push().setValue(message);
-                }
-            });
-        }
+//        if (storageReference != null) {
+//            final String name = DateFormat.format("yyyy-MM-dd_hhmmss", new Date()).toString();
+////            Uri photoURI = FileProvider.getUriForFile(ChatActivity.this,
+////                    BuildConfig.APPLICATION_ID + ".provider",
+////                    file);
+//            StorageReference imageGalleryRef = storageReference.child(name + "_camera");
+//            UploadTask uploadTask = imageGalleryRef.putFile(Uri.fromFile(file));
+//            uploadTask.addOnFailureListener(new OnFailureListener() {
+//                @Override
+//                public void onFailure(@NonNull Exception e) {
+//                    Log.e("tuan", "onFailure sendFileFirebase " + e.getMessage());
+//                }
+//            }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+//                @Override
+//                public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+//                    Log.i("tuan", "onSuccess sendFileFirebase");
+//                    Uri downloadUrl = taskSnapshot.getDownloadUrl();
+//                    FileModel fileModel = new FileModel("img", downloadUrl.toString(), file.getName(),
+//                            file.length() + "");
+//                    Message message = new Message();
+//                    message.timestamp = System.currentTimeMillis();
+//                    message.mFileModel = fileModel;
+//                    mFirebaseDatabaseReference.child("message").push().setValue(message);
+//                }
+//            });
+//        }
 
     }
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        StorageReference storageRef = storage.getReferenceFromUrl(URL_STORAGE_REFERENCE).child(FOLDER_STORAGE_IMG);
-        if (requestCode == SELECT_FILE) {
-            if (resultCode == RESULT_OK) {
-                Uri selectedImageUri = data.getData();
-                if (selectedImageUri != null) {
-                    sendFileFirebase(storageRef, selectedImageUri);
-                } else {
-                }
-            }
-        } else if (requestCode == REQUEST_CAMERA) {
-            if (resultCode == RESULT_OK) {
-                if (filePathImageCamera != null && filePathImageCamera.exists()) {
-                    //StorageReference imageCameraRef = storageRef.child(filePathImageCamera.getName() + "_camera");
-                    sendFileFirebase(storageRef, filePathImageCamera);
-                } else {
-                    //IS NULL
-                }
-            }
+        if (requestCode == RC_PHOTO_PICKER && resultCode == RESULT_OK) {
+            Uri selectedImageUri = data.getData();
+            // Get a reference to the location where we'll store our photos
+            storageRef = storage.getReference("chat_photos");
+            // Get a reference to store file at chat_photos/<FILENAME>
+            final StorageReference photoRef = storageRef.child(selectedImageUri.getLastPathSegment());
+            // Upload file to Firebase Storage
+            photoRef.putFile(selectedImageUri)
+                    .addOnSuccessListener(this, new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                        public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                            // When the image has successfully uploaded, we get its download URL
+                            Uri downloadUrl = taskSnapshot.getDownloadUrl();
+                            // Send message with Image URL
+                            Message message = new Message();
+                            message.idReceiver = roomId;
+                            message.idSender = StaticConfig.UID;
+                            message.timestamp = System.currentTimeMillis();
+                            message.text = downloadUrl.toString();
+                            databaseRef.push().setValue(message);
+                            editWriteMessage.setText("");
+                        }
+                    });
         }
+//        StorageReference storageRef = storage.getReferenceFromUrl(URL_STORAGE_REFERENCE).child(FOLDER_STORAGE_IMG);
+//        if (requestCode == SELECT_FILE) {
+//            if (resultCode == RESULT_OK) {
+//                Uri selectedImageUri = data.getData();
+//                if (selectedImageUri != null) {
+//                    sendFileFirebase(storageRef, selectedImageUri);
+//                } else {
+//                }
+//            }
+//        } else if (requestCode == REQUEST_CAMERA) {
+//            if (resultCode == RESULT_OK) {
+//                if (filePathImageCamera != null && filePathImageCamera.exists()) {
+//                    //StorageReference imageCameraRef = storageRef.child(filePathImageCamera.getName() + "_camera");
+//                    sendFileFirebase(storageRef, filePathImageCamera);
+//                } else {
+//                    //IS NULL
+//                }
+//            }
+//        }
     }
 
     private void onCaptureImageResult(Intent data) {
@@ -466,7 +510,19 @@ class ListMessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
     @Override
     public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
         if (holder instanceof ItemMessageFriendHolder) {
-            ((ItemMessageFriendHolder) holder).txtContent.setText(consersation.getListMessageData().get(position).text);
+            if (consersation.getListMessageData().get(position).text.startsWith("https://firebasestorage.googleapis.com/") ||
+                    consersation.getListMessageData().get(position).text.startsWith("content://")) {
+                ((ItemMessageFriendHolder) holder).txtContent.setVisibility(View.INVISIBLE);
+                ((ItemMessageFriendHolder) holder).image.setVisibility(View.VISIBLE);
+                Glide.with(context)
+                        .load(consersation.getListMessageData().get(position).text)
+                        .into(((ItemMessageFriendHolder) holder).image);
+            } else {
+                ((ItemMessageFriendHolder) holder).txtContent.setVisibility(View.VISIBLE);
+                ((ItemMessageFriendHolder) holder).image.setVisibility(View.GONE);
+                ((ItemMessageFriendHolder) holder).txtContent.setText(consersation.getListMessageData().get(position).text);
+            }
+//            ((ItemMessageFriendHolder) holder).txtContent.setText(consersation.getListMessageData().get(position).text);
             Bitmap currentAvata = bitmapAvata.get(consersation.getListMessageData().get(position).idSender);
             if (currentAvata != null) {
                 ((ItemMessageFriendHolder) holder).avata.setImageBitmap(currentAvata);
@@ -499,7 +555,19 @@ class ListMessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
                 }
             }
         } else if (holder instanceof ItemMessageUserHolder) {
-            ((ItemMessageUserHolder) holder).txtContent.setText(consersation.getListMessageData().get(position).text);
+            if (consersation.getListMessageData().get(position).text.startsWith("https://firebasestorage.googleapis.com/") ||
+                    consersation.getListMessageData().get(position).text.startsWith("content://")) {
+                ((ItemMessageUserHolder) holder).txtContent.setVisibility(View.INVISIBLE);
+                ((ItemMessageUserHolder) holder).image.setVisibility(View.VISIBLE);
+                Glide.with(context)
+                        .load(consersation.getListMessageData().get(position).text)
+                        .into(((ItemMessageUserHolder) holder).image);
+            } else {
+                ((ItemMessageUserHolder) holder).txtContent.setVisibility(View.VISIBLE);
+                ((ItemMessageUserHolder) holder).image.setVisibility(View.GONE);
+                ((ItemMessageUserHolder) holder).txtContent.setText(consersation.getListMessageData().get(position).text);
+            }
+//            ((ItemMessageUserHolder) holder).txtContent.setText(consersation.getListMessageData().get(position).text);
             if (bitmapAvataUser != null) {
                 ((ItemMessageUserHolder) holder).avata.setImageBitmap(bitmapAvataUser);
             }
@@ -521,22 +589,31 @@ class ListMessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 class ItemMessageUserHolder extends RecyclerView.ViewHolder {
     public TextView txtContent;
     public CircleImageView avata;
+    ImageView image;
 
     public ItemMessageUserHolder(View itemView) {
         super(itemView);
         txtContent = (TextView) itemView.findViewById(R.id.textContentUser);
         avata = (CircleImageView) itemView.findViewById(R.id.imageView2);
+        image = new ImageView(itemView.getContext());
+        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(800, 500);
+        layoutParams.leftMargin = 400;
+        image.setLayoutParams(layoutParams);
+        ((ViewGroup) itemView).addView(image);
     }
 }
 
 class ItemMessageFriendHolder extends RecyclerView.ViewHolder {
     public TextView txtContent;
     public CircleImageView avata;
+    ImageView image;
 
     public ItemMessageFriendHolder(View itemView) {
         super(itemView);
         txtContent = (TextView) itemView.findViewById(R.id.textContentFriend);
         avata = (CircleImageView) itemView.findViewById(R.id.imageView3);
+        image = new ImageView(itemView.getContext());
+        ((ViewGroup) itemView).addView(image);
     }
 
 }
