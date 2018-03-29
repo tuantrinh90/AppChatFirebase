@@ -9,10 +9,12 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.PorterDuff;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
+import android.support.annotation.RequiresApi;
 import android.support.v4.BuildConfig;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.FileProvider;
@@ -495,6 +497,7 @@ class ListMessageAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
         bitmapAvataDB = new HashMap<>();
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
         if (viewType == ChatActivity.VIEW_TYPE_FRIEND_MESSAGE) {
@@ -591,12 +594,16 @@ class ItemMessageUserHolder extends RecyclerView.ViewHolder {
     public CircleImageView avata;
     ImageView image;
 
+    @RequiresApi(api = Build.VERSION_CODES.JELLY_BEAN)
     public ItemMessageUserHolder(View itemView) {
         super(itemView);
         txtContent = (TextView) itemView.findViewById(R.id.textContentUser);
         avata = (CircleImageView) itemView.findViewById(R.id.imageView2);
         image = new ImageView(itemView.getContext());
-        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(800, 500);
+        image.setPadding(15,10,15,10);
+        image.setBackground(ContextCompat.getDrawable(itemView.getContext(),R.drawable.custom_image_bg));
+
+        LinearLayout.LayoutParams layoutParams = new LinearLayout.LayoutParams(600, 400);
         layoutParams.leftMargin = 400;
         image.setLayoutParams(layoutParams);
         ((ViewGroup) itemView).addView(image);
